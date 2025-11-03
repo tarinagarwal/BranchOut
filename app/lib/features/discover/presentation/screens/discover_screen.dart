@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import '../providers/discover_provider.dart';
 import '../widgets/profile_card.dart';
+import '../widgets/filters_bottom_sheet.dart';
+import '../widgets/swipe_counter_widget.dart';
 import '../../../../app/theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -18,11 +21,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesState = ref.watch(profilesProvider);
+    final authState = ref.watch(authStateProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Discover'),
         actions: [
+          if (authState.value != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Center(
+                child: SwipeCounterWidget(
+                  swipesLeft: authState.value!.swipesLeft,
+                  superLikesLeft: authState.value!.superLikesLeft,
+                  isPremium: authState.value!.isPremium,
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilters,
@@ -183,24 +198,19 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   void _showFilters() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Filters',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Text('Filter options coming soon...'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
+      isScrollControlled: true,
+      builder: (context) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.8,
+        child: FiltersBottomSheet(
+          currentFilters: const {},
+          onApply: (filters) {
+            ref.read(profilesProvider.notifier).loadProfiles(
+              experience: filters['experience'],
+              techStack: filters['techStack'],
+              lookingFor: filters['lookingFor'],
+              location: filters['location'],
+            );
+          },
         ),
       ),
     );
