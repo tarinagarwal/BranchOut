@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  email             String    @unique
+  name              String
+  bio               String?
+  location          String?
+  timezone          String?
+  profilePhoto      String?
+  experience        String    // Junior/Mid/Senior/Lead
+  availability      String    @default("Active") // Active/Open to offers/Just browsing
+  techStack         String[]
+  lookingFor        String[]  // Collaborator, Co-founder, Mentor, Mentee, Job, Networking
+  githubUsername    String?
+  githubStats       Json?
+  isPremium         Boolean   @default(false)
+  premiumExpiresAt  DateTime?
+  superLikesLeft    Int       @default(3)
+  lastSuperLikeReset DateTime @default(now())
+  swipesLeft        Int       @default(50)
+  lastSwipeReset    DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  projects          Project[]
+  swipesGiven       Swipe[]   @relation("SwipesGiven")
+  swipesReceived    Swipe[]   @relation("SwipesReceived")
+  matchesAsUser1    Match[]   @relation("MatchUser1")
+  matchesAsUser2    Match[]   @relation("MatchUser2")
+  messagesSent      Message[] @relation("MessagesSent")
+  messagesReceived  Message[] @relation("MessagesReceived")
+  reportsGiven      Report[]  @relation("ReportsGiven")
+  reportsReceived   Report[]  @relation("ReportsReceived")
+  projectPosts      ProjectPost[]
+  projectInterests  ProjectInterest[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  title       String
+  description String
+  githubLink  String?
+  screenshot  String?
+  techStack   String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("projects")
+}
+
+model Swipe {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  swiperId      String   @db.ObjectId
+  swipedUserId  String   @db.ObjectId
+  direction     String   // left/right/up
+  createdAt     DateTime @default(now())
+
+  swiper        User     @relation("SwipesGiven", fields: [swiperId], references: [id], onDelete: Cascade)
+  swipedUser    User     @relation("SwipesReceived", fields: [swipedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperId, swipedUserId])
+  @@map("swipes")
+}
+
+model Match {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  user1Id    String    @db.ObjectId
+  user2Id    String    @db.ObjectId
+  matchedAt  DateTime  @default(now())
+  isActive   Boolean   @default(true)
+
+  user1      User      @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2      User      @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages   Message[]
+
+  @@unique([user1Id, user2Id])
+  @@map("matches")
+}
+
+model Message {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  matchId    String   @db.ObjectId
+  senderId   String   @db.ObjectId
+  receiverId String   @db.ObjectId
+  content    String
+  type       String   @default("text") // text/code/image/link
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender     User     @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("MessagesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Report {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId      String    @db.ObjectId
+  reportedUserId  String    @db.ObjectId
+  reason          String
+  description     String?
+  status          String    @default("pending") // pending/resolved/dismissed
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+
+  reporter        User      @relation("ReportsGiven", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser    User      @relation("ReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model ProjectPost {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  title          String
+  description    String
+  techNeeded     String[]
+  timeCommitment String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests      ProjectInterest[]
+
+  @@map("project_posts")
+}
+
+model ProjectInterest {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  projectId     String      @db.ObjectId
+  userId        String      @db.ObjectId
+  status        String      @default("pending") // pending/accepted/rejected
+  createdAt     DateTime    @default(now())
+
+  project       ProjectPost @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_interests")
+}
